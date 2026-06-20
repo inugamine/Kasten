@@ -21,6 +21,14 @@ struct ContentView: View {
 
             // オーバーレイ群（下からせり上がる）
             VStack(spacing: 0) {
+                if viewModel.isAnswerPanelVisible {
+                    AIAnswerView(viewModel: viewModel) { command in
+                        // 抽出されたコマンドをターミナルに挿入（実行はユーザーに委ねる）
+                        bridge.sendToTerminal(command)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
                 if viewModel.isErrorPanelVisible {
                     ErrorPanelView(viewModel: viewModel) { command in
                         bridge.sendToTerminal(command)
@@ -35,6 +43,12 @@ struct ContentView: View {
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+            }
+        }
+        .onAppear {
+            // ターミナルで AI質問と判定された入力を ViewModel へ流す
+            bridge.onAIQuery = { question in
+                Task { await viewModel.askAI(question) }
             }
         }
         .toolbar {

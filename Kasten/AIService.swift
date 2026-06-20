@@ -89,6 +89,24 @@ final class AIService: ObservableObject {
         )
         return response.content
     }
+
+    // MARK: - 自由質問
+
+    /// ターミナル・開発に関する自由な質問に答える。
+    /// 構造化出力ではなく、普通のテキスト回答を返す。
+    func askQuestion(_ question: String) async throws -> String {
+        guard isAvailable else { throw AIServiceError.modelUnavailable }
+
+        let instructions = """
+        あなたは macOS のターミナルやソフトウェア開発に精通したアシスタントです。
+        ユーザーからの質問に、日本語で簡潔かつ実用的に答えてください。
+        コマンド例を示すときは、そのコマンドが何をするかも一言添えてください。
+        """
+
+        let session = LanguageModelSession(instructions: instructions)
+        let response = try await session.respond(to: question)
+        return response.content
+    }
 }
 
 // MARK: - Generable 構造体

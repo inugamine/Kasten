@@ -35,11 +35,45 @@ final class KastenViewModel: ObservableObject {
 
     @Published var errorMessage: String?
 
-    // MARK: - ブロック境界（OSC 133）
-    
-    /// 検出したコマンドブロックの区切り位置（出力テキストの行数ベースで後で使う）。
-    /// まずは動作確認のためイベントを受け取れることだけ確認する。
-    @Published var blockCount: Int = 0
+    // MARK: - AI質問応答（ターミナル直打ちの自動判別経由）
+
+    /// ユーザーが投げた質問文
+    @Published var aiQuestion: String = ""
+    /// AI の回答
+    @Published var aiAnswer: String?
+    /// 回答待ち中か
+    @Published var isAnswering: Bool = false
+    /// 回答パネルを表示するか
+    @Published var isAnswerPanelVisible: Bool = false
+
+    /// ターミナルで AI質問と判定された入力を受けて AI に問い合わせる。
+    func askAI(_ question: String) async {
+        let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        aiQuestion = trimmed
+        aiAnswer = nil
+        isAnswerPanelVisible = true
+        isAnswering = true
+        errorMessage = nil
+
+        do {
+            let answer = try await aiService.askQuestion(trimmed)
+            aiAnswer = answer
+        } catch {
+            errorMessage = "AIへの問い合わせに失敗しました: \(error.localizedDescription)"
+        }
+
+        isAnswering = false
+    }
+
+    func dismissAnswerPanel() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isAnswerPanelVisible = false
+        }
+        aiAnswer = nil
+        aiQuestion = ""
+    }
 
     // MARK: - コマンドサジェスト
 
