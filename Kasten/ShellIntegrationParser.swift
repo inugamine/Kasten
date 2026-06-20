@@ -14,6 +14,8 @@ enum ShellIntegrationEvent: Equatable {
     case commandStart                      // OSC 133;B コマンド入力開始
     case outputStart                       // OSC 133;C 出力開始
     case commandFinished(exitCode: Int?)   // OSC 133;D 終了（終了コード付き）
+    case directoryChanged(String)          // OSC 633;P;Cwd=... カレントディレクトリ
+    case gitBranchChanged(String)          // OSC 633;P;KastenGitBranch=... Gitブランチ
 }
 
 /// OSC 133 を検出するストリーミング状態機械。
@@ -100,19 +102,41 @@ final class ShellIntegrationParser {
         guard let payload = String(bytes: oscBuffer, encoding: .utf8) else { return nil }
         
         let parts = payload.split(separator: ";", omittingEmptySubsequences: false)
-        guard parts.count >= 2, parts[0] == "133" else { return nil }
-        
-        switch parts[1] {
-        case "A": return .promptStart
-        case "B": return .commandStart
-        case "C": return .outputStart
-        case "D":
-            if parts.count >= 3, let code = Int(parts[2]) {
-                return .commandFinished(exitCode: code)
+        guard parts.count >= 2 else { return nil }
+
+        // OSC 133: コマンド境界マーカー
+        if parts[0] == "133" {
+            switch parts[1] {
+            case "A": return .promptStart
+            case "B": return .commandStart
+            case "C": return .outputStart
+            case "D":
+                if parts.count >= 3, let code = Int(parts[2]) {
+                    return .commandFinished(exitCode: code)
+                }
+                return .commandFinished(exitCode: nil)
+            default: return nil
             }
-            return .commandFinished(exitCode: nil)
-        default: return nil
         }
+
+        // OSC 633;P;<Property>=<Value> : VSCode互換のプロパティ通知
+        if parts[0] == "633", parts.count >= 3, parts[1] == "P" {
+            // parts[2] 以降を "=" で分ける（値に = が含まれる可能性は低いが一応連結）
+            let propString = parts[2...].joined(separator: ";")
+            guard let eqIndex = propString.firstIndex(of: "=") else { return nil }
+            let key = String(propString[..<eqIndex])
+            let value = String(propString[propString.index(after: eqIndex)...])
+            switch key {
+            case "Cwd":
+                return .directoryChanged(value)
+            case "KastenGitBranch":
+                return .gitBranchChanged(value)
+            default:
+                return nil
+            }
+        }
+
+        return nil
     }
     
     func reset() {
