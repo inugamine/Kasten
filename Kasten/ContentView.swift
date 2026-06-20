@@ -14,10 +14,18 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            // ターミナル本体（最背面・上端以外を全面に）
-            // 上端だけセーフエリアを尊重して、タイトルバーの裏に行が隠れないようにする。
+            // ウィンドウ全体をターミナル背景色で埋める（角丸の内側まで回り込ませる）。
+            // これが無いと、ターミナルにマージンを付けたときに角に地が見える。
+            Color(nsColor: .textBackgroundColor)
+                .ignoresSafeArea()
+
+            // ターミナル本体。上下左右にマージンを設けて、
+            // ウィンドウの角丸で文字（行頭の s など）が見切れるのを防ぐ。
+            // 上端はタイトルバー裏に隠れないようセーフエリアを尊重する。
             TerminalContainer(bridge: bridge)
-                .ignoresSafeArea(edges: [.horizontal, .bottom])
+                .padding(.horizontal, 10)
+                .padding(.bottom, 8)
+                .ignoresSafeArea(edges: [.bottom])
 
             // オーバーレイ群（下からせり上がる）
             VStack(spacing: 0) {

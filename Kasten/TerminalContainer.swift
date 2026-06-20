@@ -66,6 +66,11 @@ final class BlockSeparatorOverlay: NSView {
         didSet { needsDisplay = true }
     }
 
+    /// 右端をどれだけ手前で止めるか（スクロールバー分の余白）。
+    var rightInset: CGFloat = 0 {
+        didSet { needsDisplay = true }
+    }
+
     // クリックなどのイベントは下のターミナルに素通しする
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
@@ -73,6 +78,7 @@ final class BlockSeparatorOverlay: NSView {
         super.draw(dirtyRect)
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         context.saveGState()
+        let rightX = max(0, bounds.width - rightInset)
         for sep in separators {
             // AppKit は左下原点なので、上端からの距離を下端からに変換
             let yFlipped = bounds.height - sep.yFromTop
@@ -83,7 +89,7 @@ final class BlockSeparatorOverlay: NSView {
             context.setLineWidth(1.0)
             context.beginPath()
             context.move(to: CGPoint(x: 0, y: yFlipped))
-            context.addLine(to: CGPoint(x: bounds.width, y: yFlipped))
+            context.addLine(to: CGPoint(x: rightX, y: yFlipped))
             context.strokePath()
         }
         context.restoreGState()
@@ -118,6 +124,10 @@ final class KastenTerminalView: LocalProcessTerminalView {
     /// カーソル位置（0〜lineBuffer.count）。文字はこの位置に挿入される。
     private var cursorIndex: Int = 0
 
+    /// top や vim などのフルスクリーンアプリ（代替画面バッファ）中かどうか。
+    /// 代替画面中は区切り線を描かない（top/vim の画面に線が残るのを防ぐ）。
+    private var isAlternateScreen = false
+
     /// 区切り線を描く透明オーバーレイ
     private let overlay = BlockSeparatorOverlay()
 
@@ -135,6 +145,8 @@ final class KastenTerminalView: LocalProcessTerminalView {
         overlay.wantsLayer = true
         overlay.layer?.backgroundColor = NSColor.clear.cgColor
         overlay.translatesAutoresizingMaskIntoConstraints = false
+        // 右端のスクロールバー分だけ線を手前で止める
+        overlay.rightInset = 16
         addSubview(overlay)
         NSLayoutConstraint.activate([
             overlay.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -144,13 +156,29 @@ final class KastenTerminalView: LocalProcessTerminalView {
         ])
     }
 
+    /// レイアウト（ウィンドウリサイズやマージン変更）が起きたら、
+    /// 区切り線を現在のサイズに合わせて引き直す。
+    public override func layout() {
+        super.layout()
+        refreshSeparators()
+    }
+
     /// pty からデータが届くたびに呼ばれる。
     /// まず super に渡して通常描画させ、その後パーサに食わせてマーカーを拾う。
     override func dataReceived(slice: ArraySlice<UInt8>) {
         super.dataReceived(slice: slice)
 
+        // top/vim などの代替画面バッファの出入りを検出してフラグを更新する。
+        updateAlternateScreenState(slice)
+
         let events = shellParser.feed(slice)
-        guard !events.isEmpty else { return }
+        guard !events.isEmpty else {
+            // イベントが無くても、代替画面の出入りで線の表示を切り替える必要がある
+            DispatchQueue.main.async { [weak self] in
+                self?.refreshSeparators()
+            }
+            return
+        }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             for event in events {
@@ -159,6 +187,45 @@ final class KastenTerminalView: LocalProcessTerminalView {
             }
             self.refreshSeparators()
         }
+    }
+
+    /// データスライスから代替画面バッファの出入りシーケンスを検出する。
+    /// 入る: ESC[?1049h / ESC[?47h / ESC[?1047h
+    /// 出る: ESC[?1049l / ESC[?47l / ESC[?1047l
+    /// 完全な CSI パーサは作らず、これらのバイト列が含まれるかを見るだけで実用上十分。
+    private func updateAlternateScreenState(_ slice: ArraySlice<UInt8>) {
+        let bytes = Array(slice)
+        // ESC [ ? = [27, 91, 63]
+        let enterSeqs: [[UInt8]] = [
+            [27, 91, 63, 49, 48, 52, 57, 104], // ?1049h
+            [27, 91, 63, 49, 48, 52, 55, 104], // ?1047h
+            [27, 91, 63, 52, 55, 104],         // ?47h
+        ]
+        let exitSeqs: [[UInt8]] = [
+            [27, 91, 63, 49, 48, 52, 57, 108], // ?1049l
+            [27, 91, 63, 49, 48, 52, 55, 108], // ?1047l
+            [27, 91, 63, 52, 55, 108],         // ?47l
+        ]
+        if enterSeqs.contains(where: { containsSubsequence(bytes, $0) }) {
+            isAlternateScreen = true
+        }
+        if exitSeqs.contains(where: { containsSubsequence(bytes, $0) }) {
+            isAlternateScreen = false
+        }
+    }
+
+    /// bytes の中に sub が部分列として含まれるか。
+    private func containsSubsequence(_ bytes: [UInt8], _ sub: [UInt8]) -> Bool {
+        guard !sub.isEmpty, bytes.count >= sub.count else { return false }
+        for start in 0...(bytes.count - sub.count) {
+            var matched = true
+            for i in 0..<sub.count where bytes[start + i] != sub[i] {
+                matched = false
+                break
+            }
+            if matched { return true }
+        }
+        return false
     }
 
     /// 描画用に境界を記録する。
@@ -194,13 +261,31 @@ final class KastenTerminalView: LocalProcessTerminalView {
 
     /// 記録した境界を、現在のスクロール位置に合わせてオーバーレイへ反映する。
     func refreshSeparators() {
+        // top/vim などのフルスクリーンアプリ中は線を一切描かない。
+        if isAlternateScreen {
+            overlay.separators = []
+            return
+        }
+
         let terminal = getTerminal()
         let rows = terminal.rows
         guard rows > 0, bounds.height > 0 else {
             overlay.separators = []
             return
         }
-        let rowHeight = bounds.height / CGFloat(rows)
+
+        // 1行の高さ。bounds.height/rows だとマージンで半端が出て下の行ほどズレる。
+        // フォントの行高さ（ascent+descent+leading）が実際のセル高さに近いので、
+        // それを優先して使い、取れない/異常値なら従来の推定にフォールバックする。
+        let estimatedRowHeight = bounds.height / CGFloat(rows)
+        let fontRowHeight = ceil(font.ascender - font.descender + font.leading)
+        let rowHeight: CGFloat
+        if fontRowHeight > 1, fontRowHeight <= estimatedRowHeight + 2 {
+            rowHeight = fontRowHeight
+        } else {
+            rowHeight = estimatedRowHeight
+        }
+
         let topRow = terminal.getTopVisibleRow()
 
         var result: [BlockSeparatorOverlay.Separator] = []
