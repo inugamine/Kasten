@@ -17,10 +17,13 @@ enum InputClassification: Equatable {
 enum InputClassifier {
     
     /// 入力1行を判別する。前後の空白は取り除いて返す。
-    /// ルール（上から順）:
+    /// ルール:
     ///   1. 行頭が "?"/"？" → AI質問（明示トリガー）
-    ///   2. 日本語を含む → AI質問
-    ///   3. それ以外 → コマンド
+    ///   2. それ以外 → コマンド
+    ///
+    /// 日本語の自動判別は行わない。英単語と日本語を半角スペースで区切る
+    /// 書き方（例: "git でコミット"）や、日本語を含むコマンド（例: echo "こんにちは"）
+    /// を誤判定しないよう、AI質問は "?"/"？" で明示する方式に統一する。
     static func classify(_ raw: String) -> InputClassification {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return .command(trimmed) }
@@ -31,23 +34,6 @@ enum InputClassifier {
             return .aiQuery(question)
         }
         
-        if containsJapanese(trimmed) {
-            return .aiQuery(trimmed)
-        }
-        
         return .command(trimmed)
-    }
-    
-    /// ひらがな・カタカナ・漢字・半角カナを含むか判定する。
-    private static func containsJapanese(_ text: String) -> Bool {
-        for scalar in text.unicodeScalars {
-            let v = scalar.value
-            if (0x3040...0x309F).contains(v) { return true }  // ひらがな
-            if (0x30A0...0x30FF).contains(v) { return true }  // カタカナ
-            if (0x4E00...0x9FFF).contains(v) { return true }  // CJK統合漢字
-            if (0x3400...0x4DBF).contains(v) { return true }  // 拡張A
-            if (0xFF66...0xFF9D).contains(v) { return true }  // 半角カナ
-        }
-        return false
     }
 }

@@ -17,13 +17,6 @@ final class KastenViewModel: ObservableObject {
 
     let aiService = AIService()
 
-    // MARK: - コマンドバー状態
-
-    @Published var commandBarInput: String = ""
-    @Published var suggestion: CommandSuggestion?
-    @Published var isSuggesting: Bool = false
-    @Published var isCommandBarVisible: Bool = false
-
     // MARK: - エラーパネル状態
 
     @Published var errorAnalysis: ErrorAnalysis?
@@ -35,31 +28,31 @@ final class KastenViewModel: ObservableObject {
 
     @Published var errorMessage: String?
 
-    // MARK: - AI質問応答（ターミナル直打ちの自動判別経由）
+    // MARK: - AIコマンド提案（ターミナルで "?〜" と打ったとき）
 
     /// ユーザーが投げた質問文
     @Published var aiQuestion: String = ""
-    /// AI の回答
-    @Published var aiAnswer: String?
+    /// AI のコマンド提案結果
+    @Published var aiSuggestion: CommandSuggestion?
     /// 回答待ち中か
     @Published var isAnswering: Bool = false
     /// 回答パネルを表示するか
     @Published var isAnswerPanelVisible: Bool = false
 
-    /// ターミナルで AI質問と判定された入力を受けて AI に問い合わせる。
+    /// ターミナルで AI質問と判定された入力を受けて、コマンドを提案させる。
     func askAI(_ question: String) async {
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
         aiQuestion = trimmed
-        aiAnswer = nil
+        aiSuggestion = nil
         isAnswerPanelVisible = true
         isAnswering = true
         errorMessage = nil
 
         do {
-            let answer = try await aiService.askQuestion(trimmed)
-            aiAnswer = answer
+            let result = try await aiService.suggestCommand(from: trimmed)
+            aiSuggestion = result
         } catch {
             errorMessage = "AIへの問い合わせに失敗しました: \(error.localizedDescription)"
         }
@@ -71,28 +64,8 @@ final class KastenViewModel: ObservableObject {
         withAnimation(.easeInOut(duration: 0.2)) {
             isAnswerPanelVisible = false
         }
-        aiAnswer = nil
+        aiSuggestion = nil
         aiQuestion = ""
-    }
-
-    // MARK: - コマンドサジェスト
-
-    func requestSuggestion() async {
-        let input = commandBarInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !input.isEmpty else { return }
-
-        isSuggesting = true
-        suggestion = nil
-        errorMessage = nil
-
-        do {
-            let result = try await aiService.suggestCommand(from: input)
-            suggestion = result
-        } catch {
-            errorMessage = "サジェストに失敗しました: \(error.localizedDescription)"
-        }
-
-        isSuggesting = false
     }
 
     // MARK: - エラー解析
@@ -128,25 +101,5 @@ final class KastenViewModel: ObservableObject {
         }
         errorAnalysis = nil
         detectedError = ""
-    }
-
-    // MARK: - コマンドバー表示切替
-
-    func toggleCommandBar() {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            isCommandBarVisible.toggle()
-        }
-        if isCommandBarVisible {
-            commandBarInput = ""
-            suggestion = nil
-        }
-    }
-
-    func dismissCommandBar() {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            isCommandBarVisible = false
-        }
-        commandBarInput = ""
-        suggestion = nil
     }
 }

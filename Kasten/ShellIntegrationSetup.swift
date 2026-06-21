@@ -61,7 +61,7 @@ enum ShellIntegrationSetup {
     }
 
     # Kasten 専用のプロンプトに上書きする。
-    # お前の設定（Starship 初期化）を source した後にこのスクリプトが読まれるので、
+    # あなたの設定（Starship 初期化）を source した後にこのスクリプトが読まれるので、
     # このフックは Starship の precmd より後に登録される＝後に実行される。
     # precmd_functions 配列は先頭から順に実行されるため、最後に走るこのフックの
     # PROMPT 上書きが最終的に勝つ。これで Starship が描いた後に Kasten 用へ差し替える。

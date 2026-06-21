@@ -43,29 +43,6 @@ final class AIService: ObservableObject {
         }
     }
 
-    // MARK: - コマンドサジェスト
-
-    /// 自然言語の説明からシェルコマンドを提案する。
-    /// 単発タスクなので呼び出しごとに専用セッションを生成する。
-    func suggestCommand(from naturalLanguage: String) async throws -> CommandSuggestion {
-        guard isAvailable else { throw AIServiceError.modelUnavailable }
-
-        let instructions = """
-        あなたは macOS のターミナルに精通したアシスタントです。
-        ユーザーがやりたいことを説明するので、それを実現する適切なシェルコマンドを提案します。
-        - command には実行すべきコマンドを1行で入れてください。複数手順が必要なら && でつなぎます。
-        - explanation にはそのコマンドが何をするかを日本語で簡潔に書きます。
-        - rm -rf やデータを破壊しうるコマンドなど危険な操作の場合のみ、warning に注意書きを書きます。安全なら warning は空文字にします。
-        """
-
-        let session = LanguageModelSession(instructions: instructions)
-        let response = try await session.respond(
-            to: naturalLanguage,
-            generating: CommandSuggestion.self
-        )
-        return response.content
-    }
-
     // MARK: - エラー解析
 
     /// ターミナルの画面テキストを解析して、原因と解決策を説明する。
@@ -90,21 +67,27 @@ final class AIService: ObservableObject {
         return response.content
     }
 
-    // MARK: - 自由質問
+    // MARK: - コマンドサジェスト
 
-    /// ターミナル・開発に関する自由な質問に答える。
-    /// 構造化出力ではなく、普通のテキスト回答を返す。
-    func askQuestion(_ question: String) async throws -> String {
+    /// 自然言語の説明からシェルコマンドを提案する。
+    /// ターミナルで "?〜" と打ったときに呼ばれる。
+    /// 自由テキストの長い回答ではなく、コマンド＋短い説明をピンポイントで返す。
+    func suggestCommand(from naturalLanguage: String) async throws -> CommandSuggestion {
         guard isAvailable else { throw AIServiceError.modelUnavailable }
 
         let instructions = """
-        あなたは macOS のターミナルやソフトウェア開発に精通したアシスタントです。
-        ユーザーからの質問に、日本語で簡潔かつ実用的に答えてください。
-        コマンド例を示すときは、そのコマンドが何をするかも一言添えてください。
+        あなたは macOS のターミナルに精通したアシスタントです。
+        ユーザーがやりたいことを説明するので、それを実現する適切なシェルコマンドを提案します。
+        - command には実行すべきコマンドを1行で入れてください。複数手順が必要なら && でつなぎます。
+        - explanation にはそのコマンドが何をするかを日本語で簡潔に書きます。
+        - rm -rf やデータを破壊しうるコマンドなど危険な操作の場合のみ、warning に注意書きを書きます。安全なら warning は空文字にします。
         """
 
         let session = LanguageModelSession(instructions: instructions)
-        let response = try await session.respond(to: question)
+        let response = try await session.respond(
+            to: naturalLanguage,
+            generating: CommandSuggestion.self
+        )
         return response.content
     }
 }

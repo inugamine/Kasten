@@ -43,14 +43,6 @@ struct ContentView: View {
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-
-                if viewModel.isCommandBarVisible {
-                    CommandBarView(viewModel: viewModel) { command in
-                        // サジェストされたコマンドはターミナルに挿入（実行はユーザーに委ねる）
-                        bridge.sendToTerminal(command)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
             }
         }
         .onAppear {
@@ -61,14 +53,6 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                // コマンドバー表示トグル
-                Button {
-                    viewModel.toggleCommandBar()
-                } label: {
-                    Label("コマンド提案", systemImage: "sparkles")
-                }
-                .help("自然言語からコマンドを提案（⌘K）")
-
                 // エラー解析（現在の画面を解析）
                 Button {
                     let snapshot = bridge.snapshotVisibleText()
@@ -82,9 +66,6 @@ struct ContentView: View {
         // キーボードショートカット（不可視ボタンで実装）
         .background {
             Group {
-                Button("") { viewModel.toggleCommandBar() }
-                    .keyboardShortcut("k", modifiers: .command)
-
                 Button("") {
                     let snapshot = bridge.snapshotVisibleText()
                     Task { await viewModel.analyzeTerminal(snapshot: snapshot) }
