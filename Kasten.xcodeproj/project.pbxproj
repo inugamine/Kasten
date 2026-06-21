@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		F11EA5012FE5B33500ADA4EA /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = F11EA5002FE5B33500ADA4EA /* SwiftTerm */; };
+		F1FC88762FE81DC700D245B3 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = F1FC88752FE81DC700D245B3 /* SwiftTerm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F11EA5012FE5B33500ADA4EA /* SwiftTerm in Frameworks */,
+				F1FC88762FE81DC700D245B3 /* SwiftTerm in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,7 +70,7 @@
 			);
 			name = Kasten;
 			packageProductDependencies = (
-				F11EA5002FE5B33500ADA4EA /* SwiftTerm */,
+				F1FC88752FE81DC700D245B3 /* SwiftTerm */,
 			);
 			productName = Kasten;
 			productReference = F11EA4F12FE5B28E00ADA4EA /* Kasten.app */;
@@ -101,7 +101,7 @@
 			mainGroup = F11EA4E82FE5B28E00ADA4EA;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				F11EA4FF2FE5B33500ADA4EA /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+				F1FC88742FE81DC700D245B3 /* XCLocalSwiftPackageReference "../SwiftTerm-fork" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F11EA4F22FE5B28E00ADA4EA /* Products */;
@@ -345,21 +345,16 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		F11EA4FF2FE5B33500ADA4EA /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.5.0;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		F1FC88742FE81DC700D245B3 /* XCLocalSwiftPackageReference "../SwiftTerm-fork" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../SwiftTerm-fork";
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		F11EA5002FE5B33500ADA4EA /* SwiftTerm */ = {
+		F1FC88752FE81DC700D245B3 /* SwiftTerm */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = F11EA4FF2FE5B33500ADA4EA /* XCRemoteSwiftPackageReference "SwiftTerm" */;
 			productName = SwiftTerm;
 		};
 /* End XCSwiftPackageProductDependency section */

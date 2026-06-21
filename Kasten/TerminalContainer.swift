@@ -98,8 +98,8 @@ final class BlockSeparatorOverlay: NSView {
 }
 
 /// IME 変換中（確定前）のテキストを描くための透明オーバーレイ。
-/// SwiftTerm は変換中テキストを捨ててしまうので、その文字を自前でカーソル位置に重ねて描く。
-/// インライン入力に近づけるため、カーソル位置の1セルに合わせて文字を置く。
+/// SwiftTerm は変換中テキストを捨ててしまうので、その文字を自前でカーソル位置に描く。
+/// 変換中らしさを出すため下線を付ける。
 final class MarkedTextOverlay: NSView {
     /// 変換中テキストと、それを描くカーソル位置（ビュー上端からの y と、左端からの x）。
     struct Marked {
@@ -520,8 +520,6 @@ final class KastenTerminalView: LocalProcessTerminalView {
         } else {
             text = ""
         }
-        // 【検証用】IMEが確定した瞬間。変換中テキストはここで消えるはず。
-        print("🈂️ [insertText] 確定='\(text)' cursorIndex=\(cursorIndex)")
         // カーソル位置に1文字ずつ挿入していく
         for ch in text {
             let idx = min(max(cursorIndex, 0), lineBuffer.count)
@@ -562,6 +560,13 @@ final class KastenTerminalView: LocalProcessTerminalView {
             clearMarkedText()
             return
         }
+
+        // 【検証用】カーソルが行末か途中か、後ろにどんな文字があるかを見る。
+        // 案S（後ろをずらして描く）の材料が揃うかの地面固め。
+        let atLineEnd = cursorIndex >= lineBuffer.count
+        let tail = atLineEnd ? "" : String(lineBuffer[cursorIndex...])
+        print("🔎 [marked] text='\(text)' cursorIndex=\(cursorIndex) bufferCount=\(lineBuffer.count) 行末=\(atLineEnd) 後ろ='\(tail)'")
+
         let terminal = getTerminal()
         let rows = terminal.rows
         guard rows > 0, bounds.height > 0 else { return }
@@ -576,10 +581,9 @@ final class KastenTerminalView: LocalProcessTerminalView {
             rowHeight = estimatedRowHeight
         }
 
+        // カーソルのセル座標（画面内の可視位置）
         // セル幅（等幅フォントの「M」の幅を１セル幅の目安にする）
         let cellWidth = ("M" as NSString).size(withAttributes: [.font: font]).width
-
-        // カーソルのセル座標（画面内の可視位置）
         let cursor = terminal.getCursorLocation()
         let xFromLeft = CGFloat(cursor.x) * cellWidth
         let yFromTop = CGFloat(cursor.y) * rowHeight
