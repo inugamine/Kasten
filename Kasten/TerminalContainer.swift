@@ -153,6 +153,10 @@ final class KastenTerminalView: LocalProcessTerminalView {
     /// 線は A（プロンプト開始）の位置に引くが、色はこの終了コードで決める。
     private var pendingExitCode: Int?
 
+    /// 最初のプロンプトをもう処理したか。
+    /// 起動直後の初回プロンプトにも線と情報を出すためのフラグ。
+    private var hasDrawnFirstPrompt = false
+
     /// 最新のカレントディレクトリと Git ブランチ（OSC 633 で通知される）。
     /// プロンプト開始(A)で境界を記録するとき、この値をセットで保存する。
     private var currentDirectory: String = ""
@@ -281,7 +285,7 @@ final class KastenTerminalView: LocalProcessTerminalView {
             pendingExitCode = exitCode
 
         case .directoryChanged(let dir):
-            // 最新のディレクトリを覚えておく
+            // 最新のディレクトリを覚えておく（promptStart でスナップショットされる）
             currentDirectory = dir
 
         case .gitBranchChanged(let branch):
@@ -289,15 +293,25 @@ final class KastenTerminalView: LocalProcessTerminalView {
             currentBranch = branch
 
         case .promptStart:
-            // 初回プロンプト（まだコマンドを何も実行していない）は線を引かない。
-            // 直前に D が来ている（= 1コマンド終わった）場合のみ線を引く。
-            guard pendingExitCode != nil else { return }
+            // 原則、直前に D（コマンド終了）が来ている場合に線を引く。
+            // ただし、起動直後の「初回プロンプト」だけは D が無くても線を引く。
+            // （現在地のディレクトリ・ブランチを起動時から見せるため）
+            let isFirstPrompt = !hasDrawnFirstPrompt
+            guard pendingExitCode != nil || isFirstPrompt else { return }
+            hasDrawnFirstPrompt = true
             let terminal = getTerminal()
             // A の瞬間のカーソル行 = これからプロンプトを描く行
             let cursorY = terminal.getCursorLocation().y
             let topRow = terminal.getTopVisibleRow()
             // カーソル行そのものだとプロンプト行の下になってしまうので、1行上に引く。
-            let absoluteRow = topRow + cursorY - 1
+            let absoluteRow: Int
+            if isFirstPrompt {
+                // 初回プロンプトは画面最上段(cursorY=0)。上に一行余裕が無く
+                // 画面外で弾かれるため、プロンプト行そのものに置く。
+                absoluteRow = topRow + cursorY
+            } else {
+                absoluteRow = topRow + cursorY - 1
+            }
             blockBoundaries.append((absoluteRow: absoluteRow,
                                     exitCode: pendingExitCode,
                                     directory: currentDirectory,
