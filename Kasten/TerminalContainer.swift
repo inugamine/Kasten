@@ -97,6 +97,51 @@ final class BlockSeparatorOverlay: NSView {
     }
 }
 
+/// IME 変換中（確定前）のテキストを描くための透明オーバーレイ。
+/// SwiftTerm は変換中テキストを捨ててしまうので、その文字を自前でカーソル位置に重ねて描く。
+/// インライン入力に近づけるため、カーソル位置の1セルに合わせて文字を置く。
+final class MarkedTextOverlay: NSView {
+    /// 変換中テキストと、それを描くカーソル位置（ビュー上端からの y と、左端からの x）。
+    struct Marked {
+        let text: String
+        let xFromLeft: CGFloat
+        let yFromTop: CGFloat
+        let rowHeight: CGFloat
+        let font: NSFont
+    }
+
+    var marked: Marked? {
+        didSet { needsDisplay = true }
+    }
+
+    // クリックなどのイベントは下のターミナルに素通しする
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard let m = marked, !m.text.isEmpty else { return }
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        context.saveGState()
+
+        // AppKit は左下原点。yFromTop（上端からの距離）を下端からに変換する。
+        // テキストはセルの上端に揃えたいので、行の底辺から rowHeight 分上げた位置に置く。
+        let baselineY = bounds.height - m.yFromTop - m.rowHeight
+
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: m.font,
+            .foregroundColor: NSColor.textColor,
+            // 変換中らしさを出す下線
+            .underlineStyle: NSUnderlineStyle.single.rawValue,
+            // 背景を敷いて、下のプロンプト文字と重なっても読めるようにする
+            .backgroundColor: NSColor.textBackgroundColor,
+        ]
+        let attributed = NSAttributedString(string: m.text, attributes: attrs)
+        attributed.draw(at: CGPoint(x: m.xFromLeft, y: baselineY))
+
+        context.restoreGState()
+    }
+}
+
 /// LocalProcessTerminalView を継承し、pty の生バイトを覗いて OSC 133 を拾う。
 /// 作者推奨の dataReceived override 方式（Discussion #308）。
 /// 検出したコマンド境界は、上に重ねた透明オーバーレイに区切り線として描く。
@@ -136,6 +181,9 @@ final class KastenTerminalView: LocalProcessTerminalView {
     /// 区切り線を描く透明オーバーレイ
     private let overlay = BlockSeparatorOverlay()
 
+    /// IME 変換中テキストを描く透明オーバーレイ
+    private let markedOverlay = MarkedTextOverlay()
+
     public override init(frame: CGRect) {
         super.init(frame: frame)
         setupOverlay()
@@ -158,6 +206,18 @@ final class KastenTerminalView: LocalProcessTerminalView {
             overlay.trailingAnchor.constraint(equalTo: trailingAnchor),
             overlay.topAnchor.constraint(equalTo: topAnchor),
             overlay.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+
+        // 変換中テキストオーバーレイを区切り線の上（手前）に重ねる
+        markedOverlay.wantsLayer = true
+        markedOverlay.layer?.backgroundColor = NSColor.clear.cgColor
+        markedOverlay.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(markedOverlay)
+        NSLayoutConstraint.activate([
+            markedOverlay.leadingAnchor.constraint(equalTo: leadingAnchor),
+            markedOverlay.trailingAnchor.constraint(equalTo: trailingAnchor),
+            markedOverlay.topAnchor.constraint(equalTo: topAnchor),
+            markedOverlay.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
     }
 
@@ -460,13 +520,82 @@ final class KastenTerminalView: LocalProcessTerminalView {
         } else {
             text = ""
         }
+        // 【検証用】IMEが確定した瞬間。変換中テキストはここで消えるはず。
+        print("🈂️ [insertText] 確定='\(text)' cursorIndex=\(cursorIndex)")
         // カーソル位置に1文字ずつ挿入していく
         for ch in text {
             let idx = min(max(cursorIndex, 0), lineBuffer.count)
             lineBuffer.insert(ch, at: idx)
             cursorIndex = idx + 1
         }
+        // 確定したので変換中表示を消す
+        clearMarkedText()
         super.insertText(string, replacementRange: replacementRange)
+    }
+
+    /// IME 変換中（確定前）のテキストがここに来る（NSTextInputClient）。
+    /// SwiftTerm 本体はこの文字列を捨ててフラグだけ立てるので、
+    /// ここで文字を拾って自前オーバーレイにカーソル位置へ描かせる。
+    /// super も必ず呼ぶ（kittyIsComposing フラグを壊さないため）。
+    public override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
+        let text: String
+        if let s = string as? String {
+            text = s
+        } else if let attr = string as? NSAttributedString {
+            text = attr.string
+        } else {
+            text = ""
+        }
+        updateMarkedText(text)
+        super.setMarkedText(string, selectedRange: selectedRange, replacementRange: replacementRange)
+    }
+
+    /// IME 変換が取り消されたときに呼ばれる（NSTextInputClient）。
+    public override func unmarkText() {
+        clearMarkedText()
+        super.unmarkText()
+    }
+
+    /// 変換中テキストを、現在のカーソル位置に合わせてオーバーレイへ描く。
+    private func updateMarkedText(_ text: String) {
+        guard !text.isEmpty else {
+            clearMarkedText()
+            return
+        }
+        let terminal = getTerminal()
+        let rows = terminal.rows
+        guard rows > 0, bounds.height > 0 else { return }
+
+        // 行の高さ（refreshSeparators と同じ考え方）
+        let estimatedRowHeight = bounds.height / CGFloat(rows)
+        let fontRowHeight = ceil(font.ascender - font.descender + font.leading)
+        let rowHeight: CGFloat
+        if fontRowHeight > 1, fontRowHeight <= estimatedRowHeight + 2 {
+            rowHeight = fontRowHeight
+        } else {
+            rowHeight = estimatedRowHeight
+        }
+
+        // セル幅（等幅フォントの「M」の幅を１セル幅の目安にする）
+        let cellWidth = ("M" as NSString).size(withAttributes: [.font: font]).width
+
+        // カーソルのセル座標（画面内の可視位置）
+        let cursor = terminal.getCursorLocation()
+        let xFromLeft = CGFloat(cursor.x) * cellWidth
+        let yFromTop = CGFloat(cursor.y) * rowHeight
+
+        markedOverlay.marked = MarkedTextOverlay.Marked(
+            text: text,
+            xFromLeft: xFromLeft,
+            yFromTop: yFromTop,
+            rowHeight: rowHeight,
+            font: font
+        )
+    }
+
+    /// 変換中テキストの表示を消す。
+    private func clearMarkedText() {
+        markedOverlay.marked = nil
     }
 }
 
