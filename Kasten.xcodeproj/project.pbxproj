@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F1DB4FDA2FEBFE310080ED1A /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = F1DB4FD92FEBFE310080ED1A /* SwiftTerm */; };
 		F1FC88762FE81DC700D245B3 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = F1FC88752FE81DC700D245B3 /* SwiftTerm */; };
 		F1FC88792FE8225900D245B3 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = F1FC88782FE8225900D245B3 /* SwiftTerm */; };
 /* End PBXBuildFile section */
@@ -30,6 +31,7 @@
 			files = (
 				F1FC88792FE8225900D245B3 /* SwiftTerm in Frameworks */,
 				F1FC88762FE81DC700D245B3 /* SwiftTerm in Frameworks */,
+				F1DB4FDA2FEBFE310080ED1A /* SwiftTerm in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,6 +76,7 @@
 			packageProductDependencies = (
 				F1FC88752FE81DC700D245B3 /* SwiftTerm */,
 				F1FC88782FE8225900D245B3 /* SwiftTerm */,
+				F1DB4FD92FEBFE310080ED1A /* SwiftTerm */,
 			);
 			productName = Kasten;
 			productReference = F11EA4F12FE5B28E00ADA4EA /* Kasten.app */;
@@ -104,7 +107,7 @@
 			mainGroup = F11EA4E82FE5B28E00ADA4EA;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				F1FC88772FE8225900D245B3 /* XCLocalSwiftPackageReference "../SwiftTerm-fork" */,
+				F1DB4FD82FEBFE310080ED1A /* XCRemoteSwiftPackageReference "SwiftTerm-fork" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F11EA4F22FE5B28E00ADA4EA /* Products */;
@@ -272,7 +275,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Kasten;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Created by inugaminé";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -306,7 +309,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Kasten;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Created by inugaminé";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -348,14 +351,23 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		F1FC88772FE8225900D245B3 /* XCLocalSwiftPackageReference "../SwiftTerm-fork" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "../SwiftTerm-fork";
+/* Begin XCRemoteSwiftPackageReference section */
+		F1DB4FD82FEBFE310080ED1A /* XCRemoteSwiftPackageReference "SwiftTerm-fork" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/inugamine/SwiftTerm-fork.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.0;
+			};
 		};
-/* End XCLocalSwiftPackageReference section */
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		F1DB4FD92FEBFE310080ED1A /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F1DB4FD82FEBFE310080ED1A /* XCRemoteSwiftPackageReference "SwiftTerm-fork" */;
+			productName = SwiftTerm;
+		};
 		F1FC88752FE81DC700D245B3 /* SwiftTerm */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SwiftTerm;

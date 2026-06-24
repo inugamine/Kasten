@@ -1,5 +1,5 @@
 {
-  "originHash" : "53b90792bb0f6c6016c9c1bd6571165251dfd86b6b64385226952256ad049bf2",
+  "originHash" : "6af20e00d5003dc8e5e7016ac0f9540b6f3101d7bd54d23996544036b3f28514",
   "pins" : [
     {
       "identity" : "swift-argument-parser",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
         "version" : "1.8.2"
+      }
+    },
+    {
+      "identity" : "swiftterm-fork",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/inugamine/SwiftTerm-fork.git",
+      "state" : {
+        "revision" : "09b827c3ee68ef0958ef7e43baaf899432cde70e",
+        "version" : "0.1.0"
       }
     }
   ],
