@@ -11,20 +11,34 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var viewModel = KastenViewModel()
     @StateObject private var bridge = TerminalBridge()
+    @EnvironmentObject private var themeStore: ThemeStore
+    @Environment(\.colorScheme) private var colorScheme
     /// AI/エラーパネルの実測高さ。ターミナルをこの分だけ持ち上げて被りを防ぐ。
     @State private var panelHeight: CGFloat = 0
+
+    /// 現在のテーマの背景色。ターミナル周囲のマージンをこの色で塗り、
+    /// ターミナル本体の地と食い違わないようにする。system はシステムの明暗に合わせる。
+    private var effectiveBackground: Color {
+        let theme: KastenTheme
+        switch themeStore.mode {
+        case .light:  theme = .light
+        case .dark:   theme = .dark
+        case .system: theme = (colorScheme == .dark) ? .dark : .light
+        }
+        return Color(nsColor: theme.background.nsColor)
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
             // ウィンドウ全体をターミナル背景色で埋める（角丸の内側まで回り込ませる）。
             // これが無いと、ターミナルにマージンを付けたときに角に地が見える。
-            Color(nsColor: .textBackgroundColor)
+            effectiveBackground
                 .ignoresSafeArea()
 
             // ターミナル本体。上下左右にマージンを設けて、
             // ウィンドウの角丸で文字（行頭の s など）が見切れるのを防ぐ。
             // 上端はタイトルバー裏に隠れないようセーフエリアを尊重する。
-            TerminalContainer(bridge: bridge)
+            TerminalContainer(bridge: bridge, themeStore: themeStore)
                 .padding(.horizontal, 10)
                 .padding(.bottom, 8)
                 .ignoresSafeArea(edges: [.bottom])
@@ -92,6 +106,7 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(ThemeStore())
 }
 
 /// AI/エラーパネルの高さを上位ビューへ伝えるための PreferenceKey。

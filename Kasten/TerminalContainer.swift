@@ -71,6 +71,15 @@ final class BlockSeparatorOverlay: NSView {
         didSet { needsDisplay = true }
     }
 
+    /// 通常の区切り線の色（テーマに合わせて差し替える）。
+    var lineColor: NSColor = NSColor.secondaryLabelColor.withAlphaComponent(0.3) {
+        didSet { needsDisplay = true }
+    }
+    /// エラー（終了コード ≠ 0）の区切り線の色。
+    var errorColor: NSColor = NSColor.systemRed.withAlphaComponent(0.5) {
+        didSet { needsDisplay = true }
+    }
+
     // クリックなどのイベントは下のターミナルに素通しする
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
@@ -83,9 +92,7 @@ final class BlockSeparatorOverlay: NSView {
         for sep in separators {
             // AppKit は左下原点なので、上端からの距離を下端からに変換
             let yFlipped = bounds.height - sep.yFromTop
-            let color: NSColor = sep.isError
-                ? NSColor.systemRed.withAlphaComponent(0.5)
-                : NSColor.secondaryLabelColor.withAlphaComponent(0.3)
+            let color: NSColor = sep.isError ? errorColor : lineColor
             context.setStrokeColor(color.cgColor)
             context.setLineWidth(1.0)
             context.beginPath()
@@ -469,15 +476,77 @@ final class KastenTerminalView: LocalProcessTerminalView {
         super.insertText(string, replacementRange: replacementRange)
     }
 
+    /// 右クリック（コンテキストメニュー）でコピー/ペースト/全選択を出す。
+    /// 各項目はレスポンダチェーン経由で SwiftTerm 既存の copy:/paste:/selectAll: に流す
+    /// （キーボードの ⌘C/⌘V と同じ経路）。選択の有無による活性/非活性は
+    /// SwiftTerm 側の検証に任せる。
+    public override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = NSMenu()
+        menu.addItem(withTitle: "コピー", action: Selector(("copy:")), keyEquivalent: "")
+        menu.addItem(withTitle: "ペースト", action: Selector(("paste:")), keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "全選択", action: Selector(("selectAll:")), keyEquivalent: "")
+        return menu
+    }
+
+    // MARK: - テーマ（配色）
+
+    /// 現在の見た目モード。変わったらテーマを当て直す。
+    var appearanceMode: AppearanceMode = .system {
+        didSet {
+            guard oldValue != appearanceMode else { return }
+            applyCurrentTheme()
+        }
+    }
+
+    /// モードと（システム追従時の）実効アピアランスから、当てるテーマを決めて適用する。
+    func applyCurrentTheme() {
+        let theme: KastenTheme
+        switch appearanceMode {
+        case .light:
+            theme = .light
+        case .dark:
+            theme = .dark
+        case .system:
+            let isDark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            theme = isDark ? .dark : .light
+        }
+        apply(theme)
+    }
+
+    /// テーマの色を SwiftTerm のライブビューへ流し込む。
+    /// installColors を最後に呼ぶことで全再描画が走り、前景/背景も含めて反映される。
+    private func apply(_ theme: KastenTheme) {
+        nativeForegroundColor = theme.foreground.nsColor
+        nativeBackgroundColor = theme.background.nsColor
+        caretColor = theme.cursor.nsColor
+        selectedTextBackgroundColor = theme.selection.nsColor.withAlphaComponent(0.4)
+        // 区切り線の色もテーマに合わせる（背景に対してコントラストを確保）。
+        overlay.lineColor = theme.foreground.nsColor.withAlphaComponent(0.22)
+        overlay.errorColor = theme.ansi[1].nsColor.withAlphaComponent(0.7)
+        installColors(theme.ansi.map(\.swiftTermColor))
+    }
+
+    /// システム追従中に macOS のライト/ダークが切り替わったら当て直す。
+    public override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        if appearanceMode == .system {
+            applyCurrentTheme()
+        }
+    }
+
 }
 
 /// SwiftTerm の KastenTerminalView を SwiftUI に橋渡しする
 struct TerminalContainer: NSViewRepresentable {
     @ObservedObject var bridge: TerminalBridge
+    @ObservedObject var themeStore: ThemeStore
     
     func makeNSView(context: Context) -> KastenTerminalView {
         let terminal = KastenTerminalView(frame: .zero)
-        terminal.configureNativeColors()
+        // 起動時のテーマを当てる（以降はモード変更や OS のライト/ダーク切替で更新）。
+        terminal.appearanceMode = themeStore.mode
+        terminal.applyCurrentTheme()
         
         // OSC 133 イベントをブリッジ経由で ViewModel に流す
         terminal.onShellEvent = { [weak bridge] event in
@@ -517,7 +586,16 @@ struct TerminalContainer: NSViewRepresentable {
         return terminal
     }
     
-    func updateNSView(_ nsView: KastenTerminalView, context: Context) {}
+    func updateNSView(_ nsView: KastenTerminalView, context: Context) {
+        // モードが変わったらテーマを当て直す。適用は再描画を伴うので、
+        // SwiftUI のビュー更新サイクルの中ではなく次のランループで実行する
+        // （"Publishing changes from within view updates" を避ける）。
+        let mode = themeStore.mode
+        guard nsView.appearanceMode != mode else { return }
+        DispatchQueue.main.async {
+            nsView.appearanceMode = mode
+        }
+    }
     
     private func makeBaseEnvironment() -> [String: String] {
         var env = ProcessInfo.processInfo.environment

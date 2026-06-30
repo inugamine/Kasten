@@ -11,9 +11,12 @@ import AppKit
 
 @main
 struct KastenApp: App {
+    @StateObject private var themeStore = ThemeStore()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(themeStore)
                 .frame(minWidth: 700, minHeight: 450)
         }
         .windowResizability(.contentMinSize)
@@ -24,6 +27,12 @@ struct KastenApp: App {
                     KastenApp.showAboutPanel()
                 }
             }
+        }
+
+        // ⌘, で開く設定ウィンドウ。
+        Settings {
+            SettingsView()
+                .environmentObject(themeStore)
         }
     }
 
