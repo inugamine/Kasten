@@ -491,13 +491,12 @@ final class KastenTerminalView: LocalProcessTerminalView {
 
     // MARK: - テーマ（配色）
 
-    /// 現在の見た目モード。変わったらテーマを当て直す。
-    var appearanceMode: AppearanceMode = .system {
-        didSet {
-            guard oldValue != appearanceMode else { return }
-            applyCurrentTheme()
-        }
-    }
+    /// 現在の見た目モード。適用は applyCurrentTheme() を明示的に呼ぶ
+    /// （コンテナ側で customTheme と一緒にまとめて反映するため、ここでは didSet しない）。
+    var appearanceMode: AppearanceMode = .system
+
+    /// カスタムモードで使う配色。
+    var customTheme: KastenTheme = .dark
 
     /// モードと（システム追従時の）実効アピアランスから、当てるテーマを決めて適用する。
     func applyCurrentTheme() {
@@ -507,6 +506,8 @@ final class KastenTerminalView: LocalProcessTerminalView {
             theme = .light
         case .dark:
             theme = .dark
+        case .custom:
+            theme = customTheme
         case .system:
             let isDark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
             theme = isDark ? .dark : .light
@@ -546,6 +547,7 @@ struct TerminalContainer: NSViewRepresentable {
         let terminal = KastenTerminalView(frame: .zero)
         // 起動時のテーマを当てる（以降はモード変更や OS のライト/ダーク切替で更新）。
         terminal.appearanceMode = themeStore.mode
+        terminal.customTheme = themeStore.customTheme
         terminal.applyCurrentTheme()
         
         // OSC 133 イベントをブリッジ経由で ViewModel に流す
@@ -587,13 +589,16 @@ struct TerminalContainer: NSViewRepresentable {
     }
     
     func updateNSView(_ nsView: KastenTerminalView, context: Context) {
-        // モードが変わったらテーマを当て直す。適用は再描画を伴うので、
+        // モードまたはカスタム色が変わったらテーマを当て直す。適用は再描画を伴うので、
         // SwiftUI のビュー更新サイクルの中ではなく次のランループで実行する
         // （"Publishing changes from within view updates" を避ける）。
         let mode = themeStore.mode
-        guard nsView.appearanceMode != mode else { return }
+        let custom = themeStore.customTheme
+        guard nsView.appearanceMode != mode || nsView.customTheme != custom else { return }
         DispatchQueue.main.async {
             nsView.appearanceMode = mode
+            nsView.customTheme = custom
+            nsView.applyCurrentTheme()
         }
     }
     

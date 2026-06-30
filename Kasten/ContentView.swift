@@ -23,6 +23,7 @@ struct ContentView: View {
         switch themeStore.mode {
         case .light:  theme = .light
         case .dark:   theme = .dark
+        case .custom: theme = themeStore.customTheme
         case .system: theme = (colorScheme == .dark) ? .dark : .light
         }
         return Color(nsColor: theme.background.nsColor)
