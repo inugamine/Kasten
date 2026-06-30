@@ -104,7 +104,7 @@ struct KastenTheme: Codable, Equatable {
 }
 
 extension KastenTheme {
-    /// ダーク（夕凪 ― 凪いだ群青の夕暮れ）。背景は藍から深群青への縦グラデ。
+    /// ダーク。
     static let dark = KastenTheme(
         foreground: RGB("#C7D2E8"),
         background: RGB("#1F2A44"),
@@ -121,15 +121,16 @@ extension KastenTheme {
     
     /// ライト。
     static let light = KastenTheme(
-        foreground: RGB("#3A3D4D"),
-        background: RGB("#FAFAFA"),
-        cursor: RGB("#1A8F5A"),
-        selection: RGB("#C8E1FF"),
+        foreground: RGB("#4A3B2E"),
+        background: RGB("#FFFFFF"),
+        backgroundGradientBottom: RGB("#FCE8D4"),
+        cursor: RGB("#E08A3C"),
+        selection: RGB("#FBD9B5"),
         ansi: [
-            RGB("#5C5F77"), RGB("#D20F39"), RGB("#40A02B"), RGB("#DF8E1D"),
-            RGB("#1E66F5"), RGB("#EA76CB"), RGB("#179299"), RGB("#ACB0BE"),
-            RGB("#6C6F85"), RGB("#D20F39"), RGB("#40A02B"), RGB("#DF8E1D"),
-            RGB("#1E66F5"), RGB("#EA76CB"), RGB("#179299"), RGB("#BCC0CC"),
+            RGB("#5A4A3A"), RGB("#D2502E"), RGB("#5C8A3A"), RGB("#C8881C"),
+            RGB("#3A78B0"), RGB("#B5567E"), RGB("#2F8A86"), RGB("#6E5C48"),
+            RGB("#7A6650"), RGB("#E26A45"), RGB("#6FA04A"), RGB("#DDA02E"),
+            RGB("#4E8DC4"), RGB("#C76B91"), RGB("#3DA39E"), RGB("#4A3B2E"),
         ]
     )
 }

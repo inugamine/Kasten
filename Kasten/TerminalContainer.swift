@@ -190,8 +190,13 @@ final class KastenTerminalView: LocalProcessTerminalView {
         // top/vim などの代替画面バッファの出入りを検出してフラグを更新する。
         updateAlternateScreenState(slice)
 
+        // clear（画面・スクロールバック消去）を検知。古い区切り線の絶対行は
+        // スクロールバックリセットで無効になるため、捨てる（ゴースト線防止）。
+        // 代替画面中の 2J は TUI アプリの再描画なので除外する。
+        let didClear = !isAlternateScreen && containsClearSequence(Array(slice))
+
         let events = shellParser.feed(slice)
-        guard !events.isEmpty else {
+        if events.isEmpty && !didClear {
             // イベントが無くても、代替画面の出入りで線の表示を切り替える必要がある
             DispatchQueue.main.async { [weak self] in
                 self?.refreshSeparators()
@@ -200,6 +205,11 @@ final class KastenTerminalView: LocalProcessTerminalView {
         }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
+            // clear を検知したら、イベント処理より先に古い線を捨てる。
+            // 直後の 133;A で新しいプロンプト位置（画面外）に線が引かれる。
+            if didClear {
+                self.clearBlockBoundaries()
+            }
             for event in events {
                 self.handleEventForDrawing(event)
                 self.onShellEvent?(event)
@@ -245,6 +255,15 @@ final class KastenTerminalView: LocalProcessTerminalView {
             if matched { return true }
         }
         return false
+    }
+
+    /// スライス中に clear 相当の画面消去シーケンスが含まれるか。
+    /// ESC[2J（画面消去） / ESC[3J（スクロールバック消去）。
+    private func containsClearSequence(_ bytes: [UInt8]) -> Bool {
+        let eraseScreen: [UInt8] = [27, 91, 50, 74]      // ESC [ 2 J
+        let eraseScrollback: [UInt8] = [27, 91, 51, 74]  // ESC [ 3 J
+        return containsSubsequence(bytes, eraseScreen)
+            || containsSubsequence(bytes, eraseScrollback)
     }
 
     /// 描画用に境界を記録する。

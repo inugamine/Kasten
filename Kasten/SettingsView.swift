@@ -64,9 +64,18 @@ struct SettingsView: View {
 
             sectionBox("基本") {
                 colorRow("前景", \.foreground)
-                colorRow("背景", \.background)
                 colorRow("カーソル", \.cursor)
                 colorRow("選択範囲", \.selection)
+            }
+
+            sectionBox("背景") {
+                Toggle("グラデーションにする", isOn: gradientEnabledBinding)
+                if themeStore.customTheme.backgroundGradientBottom != nil {
+                    ColorPicker("上の色", selection: colorBinding(\.background), supportsOpacity: false)
+                    ColorPicker("下の色", selection: gradientBottomBinding, supportsOpacity: false)
+                } else {
+                    ColorPicker("背景色", selection: colorBinding(\.background), supportsOpacity: false)
+                }
             }
 
             sectionBox("ANSI（通常）") {
@@ -130,6 +139,38 @@ struct SettingsView: View {
                 let rgb = KastenTheme.RGB(nsColor: NSColor(newColor))
                 DispatchQueue.main.async {
                     themeStore.customTheme[keyPath: keyPath] = rgb
+                }
+            }
+        )
+    }
+
+    /// 背景グラデーションの ON/OFF。ON にすると下端色を上端と同色で作り、OFF で nil に戻す。
+    private var gradientEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { themeStore.customTheme.backgroundGradientBottom != nil },
+            set: { on in
+                DispatchQueue.main.async {
+                    if on {
+                        themeStore.customTheme.backgroundGradientBottom = themeStore.customTheme.background
+                    } else {
+                        themeStore.customTheme.backgroundGradientBottom = nil
+                    }
+                }
+            }
+        )
+    }
+
+    /// 背景グラデーション下端の色。未設定時は上端（背景）と同色を表示する。
+    private var gradientBottomBinding: Binding<Color> {
+        Binding(
+            get: {
+                let rgb = themeStore.customTheme.backgroundGradientBottom ?? themeStore.customTheme.background
+                return Color(nsColor: rgb.nsColor)
+            },
+            set: { newColor in
+                let rgb = KastenTheme.RGB(nsColor: NSColor(newColor))
+                DispatchQueue.main.async {
+                    themeStore.customTheme.backgroundGradientBottom = rgb
                 }
             }
         )
