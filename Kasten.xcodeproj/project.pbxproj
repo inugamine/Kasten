@@ -98,7 +98,7 @@
 				};
 			};
 			buildConfigurationList = F11EA4EC2FE5B28E00ADA4EA /* Build configuration list for PBXProject "Kasten" */;
-			developmentRegion = en;
+			developmentRegion = ja;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,

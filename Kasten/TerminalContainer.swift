@@ -528,10 +528,10 @@ final class KastenTerminalView: LocalProcessTerminalView {
     /// （キーボードの ⌘C/⌘V と同じ経路）。選択の有無による活性/非活性は SwiftTerm 側の検証に任せる。
     public override func menu(for event: NSEvent) -> NSMenu? {
         let menu = NSMenu()
-        menu.addItem(withTitle: String(localized: "コピー"), action: Selector(("copy:")), keyEquivalent: "")
-        menu.addItem(withTitle: String(localized: "ペースト"), action: Selector(("paste:")), keyEquivalent: "")
+        menu.addItem(withTitle: String(localized: "コピー"), action: #selector(NSText.copy(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: String(localized: "ペースト"), action: #selector(NSText.paste(_:)), keyEquivalent: "")
         menu.addItem(.separator())
-        menu.addItem(withTitle: String(localized: "全選択"), action: Selector(("selectAll:")), keyEquivalent: "")
+        menu.addItem(withTitle: String(localized: "全選択"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "")
         return menu
     }
 

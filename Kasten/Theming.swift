@@ -110,7 +110,7 @@ extension KastenTheme {
         background: RGB("#1F2A44"),
         backgroundGradientBottom: RGB("#10131F"),
         cursor: RGB("#7FB7C4"),
-        selection: RGB("#2E3E5E"),
+        selection: RGB("#5068A0"),
         ansi: [
             RGB("#2A3450"), RGB("#E8728C"), RGB("#8FC9A8"), RGB("#E0C081"),
             RGB("#7AA2E0"), RGB("#B69AE0"), RGB("#86C7D6"), RGB("#C7D2E8"),
