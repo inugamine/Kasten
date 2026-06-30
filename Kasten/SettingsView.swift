@@ -12,7 +12,7 @@ struct SettingsView: View {
     @EnvironmentObject private var themeStore: ThemeStore
 
     /// ANSI 16 色の表示名（0..15）。
-    private let ansiLabels = [
+    private let ansiLabels: [LocalizedStringKey] = [
         "黒", "赤", "緑", "黄", "青", "マゼンタ", "シアン", "白",
         "明るい黒（グレー）", "明るい赤", "明るい緑", "明るい黄",
         "明るい青", "明るいマゼンタ", "明るいシアン", "明るい白",
@@ -95,7 +95,7 @@ struct SettingsView: View {
     // MARK: - 部品
 
     /// セクション枠。タイトル付きで中身を縦に並べる。
-    private func sectionBox<Content: View>(_ title: String,
+    private func sectionBox<Content: View>(_ title: LocalizedStringKey,
                                            @ViewBuilder content: () -> Content) -> some View {
         GroupBox(title) {
             VStack(alignment: .leading, spacing: 10) {
@@ -117,7 +117,7 @@ struct SettingsView: View {
     }
 
     /// 1 色分の行（ラベル＋カラーピッカー）。
-    private func colorRow(_ label: String,
+    private func colorRow(_ label: LocalizedStringKey,
                           _ keyPath: WritableKeyPath<KastenTheme, KastenTheme.RGB>) -> some View {
         ColorPicker(label, selection: colorBinding(keyPath), supportsOpacity: false)
     }

@@ -391,6 +391,12 @@ final class KastenTerminalView: LocalProcessTerminalView {
         return line.trimmingCharacters(in: .whitespaces)
     }
 
+    /// 文字列が AI トリガー（?/？）で始まるか。前後の空白は無視する。
+    private func startsWithAITrigger(_ s: String) -> Bool {
+        guard let first = s.trimmingCharacters(in: .whitespacesAndNewlines).first else { return false }
+        return first == "?" || first == "？"
+    }
+
     /// ターミナルがスクロールされたときに SwiftTerm から通知される。
     /// TerminalViewDelegate のメソッド。override して super を呼んだ上で、
     /// 現在のスクロール位置に合わせて区切り線を引き直す。
@@ -430,16 +436,31 @@ final class KastenTerminalView: LocalProcessTerminalView {
         for byte in bytes {
             switch byte {
             case 13: // Enter (\r)
-                // 通常は lineBuffer を使うが、空のとき（履歴・ペースト）は
-                // 画面の現在行を読んでフォールバックする。
-                let line: String
-                if lineBuffer.isEmpty {
-                    let raw = readCurrentLineText()
-                    line = extractInputFromPromptLine(raw)
+                // 入力1行を lineBuffer（通常）と画面読み取り（IME 確定順のズレに強い）の
+                // 両方から組み立てる。AI トリガー(?/？)の判定は、どちらかが先頭に持っていれば
+                // 成立とする。日本語 IME の確定タイミングで lineBuffer の先頭から ? が
+                // 漏れても、zsh がエコーした画面側で拾えるようにするため。
+                let bufferLine = String(lineBuffer)
+                let screenLine = extractInputFromPromptLine(readCurrentLineText())
+
+                let classification: InputClassification
+                if startsWithAITrigger(bufferLine) {
+                    // 通常経路: バッファ先頭が ?/？
+                    classification = InputClassifier.classify(bufferLine)
+                } else if startsWithAITrigger(screenLine) {
+                    // バッファは ? を取りこぼしているが、画面には出ている。
+                    // バッファは ? 以外の本文を正しく持っているので、空でなければそれを質問にする。
+                    // 空なら（履歴・ペースト等）画面の ? 以降を質問にする。
+                    let q = bufferLine.isEmpty
+                        ? String(screenLine.dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines)
+                        : bufferLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                    classification = .aiQuery(q)
+                } else if bufferLine.isEmpty {
+                    // 履歴・ペースト等、バッファを通らなかった入力。
+                    classification = InputClassifier.classify(screenLine)
                 } else {
-                    line = String(lineBuffer)
+                    classification = InputClassifier.classify(bufferLine)
                 }
-                let classification = InputClassifier.classify(line)
                 switch classification {
                 case .aiQuery(let question):
                     // AI質問: Enter を送らず、Ctrl-U(21) で行を消してから AI へ
@@ -504,14 +525,13 @@ final class KastenTerminalView: LocalProcessTerminalView {
 
     /// 右クリック（コンテキストメニュー）でコピー/ペースト/全選択を出す。
     /// 各項目はレスポンダチェーン経由で SwiftTerm 既存の copy:/paste:/selectAll: に流す
-    /// （キーボードの ⌘C/⌘V と同じ経路）。選択の有無による活性/非活性は
-    /// SwiftTerm 側の検証に任せる。
+    /// （キーボードの ⌘C/⌘V と同じ経路）。選択の有無による活性/非活性は SwiftTerm 側の検証に任せる。
     public override func menu(for event: NSEvent) -> NSMenu? {
         let menu = NSMenu()
-        menu.addItem(withTitle: "コピー", action: Selector(("copy:")), keyEquivalent: "")
-        menu.addItem(withTitle: "ペースト", action: Selector(("paste:")), keyEquivalent: "")
+        menu.addItem(withTitle: String(localized: "コピー"), action: Selector(("copy:")), keyEquivalent: "")
+        menu.addItem(withTitle: String(localized: "ペースト"), action: Selector(("paste:")), keyEquivalent: "")
         menu.addItem(.separator())
-        menu.addItem(withTitle: "全選択", action: Selector(("selectAll:")), keyEquivalent: "")
+        menu.addItem(withTitle: String(localized: "全選択"), action: Selector(("selectAll:")), keyEquivalent: "")
         return menu
     }
 

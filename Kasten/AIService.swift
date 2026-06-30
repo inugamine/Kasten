@@ -43,6 +43,21 @@ final class AIService: ObservableObject {
         }
     }
 
+    // MARK: - 回答言語の決定
+
+    /// AI の回答に使う言語（英語表記の言語名 "Japanese" "German" など）を返す。
+    /// ユーザーが OS で設定している優先言語の先頭をそのまま使う。
+    private static func responseLanguageName() -> String {
+        // Locale.current はアプリがローカライズ対応済みの言語に制限されるため、
+        // UI 翻訳の整備が済む前は OS が ja でも en に丸められてしまう。
+        // preferredLanguages ならアプリのローカライズ状況に関係なく、
+        // ユーザー本来の優先言語（"ja-JP" "de-DE" など）がそのまま取れる。
+        let preferred = Locale.preferredLanguages.first ?? "en"
+        let code = Locale(identifier: preferred).language.languageCode?.identifier ?? "en"
+        // モデルへ渡す言語名は英語表記にする（最も確実に伝わる形）。
+        return Locale(identifier: "en_US").localizedString(forLanguageCode: code) ?? "English"
+    }
+
     // MARK: - エラー解析
 
     /// ターミナルの画面テキストを解析して、原因と解決策を説明する。
@@ -50,18 +65,19 @@ final class AIService: ObservableObject {
     func analyzeError(terminalText: String) async throws -> ErrorAnalysis {
         guard isAvailable else { throw AIServiceError.modelUnavailable }
 
+        let language = Self.responseLanguageName()
         let instructions = """
-        あなたは macOS のターミナルエラーを解析するアシスタントです。
-        ターミナル画面に表示されているテキスト全体を渡すので、その中から直近に実行された
-        コマンドとそのエラー出力を読み取り、原因と解決策を説明してください。
-        - cause にはエラーの原因を日本語で簡潔に説明します。
-        - solution には解決策を日本語で説明します。
-        - 修正に使えるコマンドがあれば fixCommand に1行で入れます。なければ空文字にします。
+        You are an assistant that analyzes macOS terminal errors.
+        You will be given the entire text shown on the terminal screen. From it, identify the most recently executed command and its error output, then explain the cause and the solution.
+        - In `cause`, concisely explain the cause of the error.
+        - In `solution`, explain how to resolve it.
+        - If there is a command that can fix the issue, put it on a single line in `fixCommand`. Otherwise leave it as an empty string.
+        - Always write `cause` and `solution` in \(language).
         """
 
         let session = LanguageModelSession(instructions: instructions)
         let response = try await session.respond(
-            to: "次のターミナル画面を解析してください:\n\n\(terminalText)",
+            to: "Analyze the following terminal screen:\n\n\(terminalText)",
             generating: ErrorAnalysis.self
         )
         return response.content
@@ -75,12 +91,14 @@ final class AIService: ObservableObject {
     func suggestCommand(from naturalLanguage: String) async throws -> CommandSuggestion {
         guard isAvailable else { throw AIServiceError.modelUnavailable }
 
+        let language = Self.responseLanguageName()
         let instructions = """
-        あなたは macOS のターミナルに精通したアシスタントです。
-        ユーザーがやりたいことを説明するので、それを実現する適切なシェルコマンドを提案します。
-        - command には実行すべきコマンドを1行で入れてください。複数手順が必要なら && でつなぎます。
-        - explanation にはそのコマンドが何をするかを日本語で簡潔に書きます。
-        - rm -rf やデータを破壊しうるコマンドなど危険な操作の場合のみ、warning に注意書きを書きます。安全なら warning は空文字にします。
+        You are an assistant well-versed in the macOS terminal.
+        The user describes what they want to do; propose an appropriate shell command to achieve it.
+        - Put the command to run on a single line in `command`. If multiple steps are required, join them with &&.
+        - In `explanation`, concisely describe what the command does.
+        - Only when the operation is dangerous (e.g. rm -rf or anything that could destroy data), write a caution in `warning`. If it is safe, leave `warning` as an empty string.
+        - Always write `explanation` and `warning` in \(language).
         """
 
         let session = LanguageModelSession(instructions: instructions)
@@ -96,25 +114,25 @@ final class AIService: ObservableObject {
 
 @Generable
 struct CommandSuggestion: Equatable {
-    @Guide(description: "実行すべきシェルコマンドを1行で")
+    @Guide(description: "The shell command to run, on a single line")
     var command: String
 
-    @Guide(description: "コマンドの簡潔な説明（日本語）")
+    @Guide(description: "A concise explanation of what the command does")
     var explanation: String
 
-    @Guide(description: "危険なコマンドの場合の注意書き。安全なら空文字")
+    @Guide(description: "A caution note when the command is dangerous; empty string if safe")
     var warning: String
 }
 
 @Generable
 struct ErrorAnalysis: Equatable {
-    @Guide(description: "エラーの原因の簡潔な説明（日本語）")
+    @Guide(description: "A concise explanation of the cause of the error")
     var cause: String
 
-    @Guide(description: "解決策の提案（日本語）")
+    @Guide(description: "A proposed solution")
     var solution: String
 
-    @Guide(description: "修正に使えるコマンド（あれば）。なければ空文字")
+    @Guide(description: "A command that can fix the issue, if any; empty string otherwise")
     var fixCommand: String
 }
 

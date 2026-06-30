@@ -68,7 +68,7 @@ struct KastenApp: App {
         WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         """
 
-        let header = "Kasten は以下のオープンソースソフトウェアを利用しています。\n\n"
+        let header = String(localized: "Kasten は以下のオープンソースソフトウェアを利用しています。\n\n")
 
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineSpacing = 2

@@ -54,7 +54,7 @@ final class KastenViewModel: ObservableObject {
             let result = try await aiService.suggestCommand(from: trimmed)
             aiSuggestion = result
         } catch {
-            errorMessage = "AIへの問い合わせに失敗しました: \(error.localizedDescription)"
+            errorMessage = String(localized: "AIへの問い合わせに失敗しました: \(error.localizedDescription)")
         }
 
         isAnswering = false
@@ -75,7 +75,7 @@ final class KastenViewModel: ObservableObject {
     func analyzeTerminal(snapshot: String) async {
         let trimmed = snapshot.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            errorMessage = "ターミナルに解析できる内容がありません。"
+            errorMessage = String(localized: "ターミナルに解析できる内容がありません。")
             return
         }
 
@@ -89,7 +89,7 @@ final class KastenViewModel: ObservableObject {
             let result = try await aiService.analyzeError(terminalText: trimmed)
             errorAnalysis = result
         } catch {
-            errorMessage = "エラー解析に失敗しました: \(error.localizedDescription)"
+            errorMessage = String(localized: "エラー解析に失敗しました: \(error.localizedDescription)")
         }
 
         isAnalyzing = false

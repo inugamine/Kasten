@@ -21,10 +21,10 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
     /// セグメント表示用の短いラベル。
     var label: String {
         switch self {
-        case .system: return "システム"
-        case .light:  return "ライト"
-        case .dark:   return "ダーク"
-        case .custom: return "カスタム"
+        case .system: return String(localized: "システム")
+        case .light:  return String(localized: "ライト")
+        case .dark:   return String(localized: "ダーク")
+        case .custom: return String(localized: "カスタム")
         }
     }
 }
