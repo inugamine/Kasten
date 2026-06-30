@@ -33,10 +33,16 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 struct KastenTheme: Codable, Equatable {
     var foreground: RGB
     var background: RGB
+    /// 背景グラデーションの下端の色。nil なら background の単色。
+    var backgroundGradientBottom: RGB? = nil
     var cursor: RGB
     var selection: RGB
     /// ANSI 16 色（0..7 が通常、8..15 が明るい色）。必ず 16 要素。
     var ansi: [RGB]
+
+    /// 背景グラデーションの上端∕下端。下端が無ければ上端と同色（＝単色扱い）。
+    var gradientTopColor: RGB { background }
+    var gradientBottomColor: RGB { backgroundGradientBottom ?? background }
     
     /// 8bit の RGB を表す軽量な色。AppKit と SwiftTerm の両方へ変換でき、
     /// JSON には "#RRGGBB" 文字列として保存される。
@@ -98,17 +104,18 @@ struct KastenTheme: Codable, Equatable {
 }
 
 extension KastenTheme {
-    /// ダーク（スレート基調）。
+    /// ダーク（夕凪 ― 凪いだ群青の夕暮れ）。背景は藍から深群青への縦グラデ。
     static let dark = KastenTheme(
-        foreground: RGB("#C0CAF5"),
-        background: RGB("#1A1B26"),
-        cursor: RGB("#5BE49B"),
-        selection: RGB("#28304A"),
+        foreground: RGB("#C7D2E8"),
+        background: RGB("#1F2A44"),
+        backgroundGradientBottom: RGB("#10131F"),
+        cursor: RGB("#7FB7C4"),
+        selection: RGB("#2E3E5E"),
         ansi: [
-            RGB("#15161E"), RGB("#F7768E"), RGB("#9ECE6A"), RGB("#E0AF68"),
-            RGB("#7AA2F7"), RGB("#BB9AF7"), RGB("#7DCFFF"), RGB("#A9B1D6"),
-            RGB("#414868"), RGB("#F7768E"), RGB("#9ECE6A"), RGB("#E0AF68"),
-            RGB("#7AA2F7"), RGB("#BB9AF7"), RGB("#7DCFFF"), RGB("#C0CAF5"),
+            RGB("#2A3450"), RGB("#E8728C"), RGB("#8FC9A8"), RGB("#E0C081"),
+            RGB("#7AA2E0"), RGB("#B69AE0"), RGB("#86C7D6"), RGB("#C7D2E8"),
+            RGB("#4A5878"), RGB("#F08CA0"), RGB("#A6D9BC"), RGB("#ECCF96"),
+            RGB("#93B5EC"), RGB("#C7AEEC"), RGB("#9FD7E4"), RGB("#E3EAF6"),
         ]
     )
     

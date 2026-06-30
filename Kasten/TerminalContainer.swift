@@ -154,6 +154,10 @@ final class KastenTerminalView: LocalProcessTerminalView {
     }
 
     private func setupOverlay() {
+        // 背景グラデーションを後ろに透かすため、ターミナル自身を透明にする。
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.clear.cgColor
+
         overlay.wantsLayer = true
         overlay.layer?.backgroundColor = NSColor.clear.cgColor
         overlay.translatesAutoresizingMaskIntoConstraints = false
@@ -167,6 +171,9 @@ final class KastenTerminalView: LocalProcessTerminalView {
             overlay.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
     }
+
+    /// 背後の SwiftUI グラデーションを透かすため、不透明扱いにしない。
+    public override var isOpaque: Bool { false }
 
     /// レイアウト（ウィンドウリサイズやマージン変更）が起きたら、
     /// 区切り線を現在のサイズに合わせて引き直す。
@@ -519,7 +526,8 @@ final class KastenTerminalView: LocalProcessTerminalView {
     /// installColors を最後に呼ぶことで全再描画が走り、前景/背景も含めて反映される。
     private func apply(_ theme: KastenTheme) {
         nativeForegroundColor = theme.foreground.nsColor
-        nativeBackgroundColor = theme.background.nsColor
+        // 背景は SwiftUI 側のグラデーションで描くため、ターミナルのセル背景は透明にする。
+        nativeBackgroundColor = .clear
         caretColor = theme.cursor.nsColor
         selectedTextBackgroundColor = theme.selection.nsColor.withAlphaComponent(0.4)
         // 区切り線の色もテーマに合わせる（背景に対してコントラストを確保）。

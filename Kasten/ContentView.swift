@@ -16,17 +16,26 @@ struct ContentView: View {
     /// AI/エラーパネルの実測高さ。ターミナルをこの分だけ持ち上げて被りを防ぐ。
     @State private var panelHeight: CGFloat = 0
 
-    /// 現在のテーマの背景色。ターミナル周囲のマージンをこの色で塗り、
-    /// ターミナル本体の地と食い違わないようにする。system はシステムの明暗に合わせる。
-    private var effectiveBackground: Color {
-        let theme: KastenTheme
+    /// 現在のテーマ。system はシステムの明暗に合わせる。
+    private var effectiveTheme: KastenTheme {
         switch themeStore.mode {
-        case .light:  theme = .light
-        case .dark:   theme = .dark
-        case .custom: theme = themeStore.customTheme
-        case .system: theme = (colorScheme == .dark) ? .dark : .light
+        case .light:  return .light
+        case .dark:   return .dark
+        case .custom: return themeStore.customTheme
+        case .system: return (colorScheme == .dark) ? .dark : .light
         }
-        return Color(nsColor: theme.background.nsColor)
+    }
+
+    /// 背景。テーマの上端→下端へ縦グラデを敷く（下端が無いテーマは単色）。
+    /// ターミナルのセル背景は透明なので、このグラデが文字の裏まで透けて見える。
+    private var effectiveBackground: LinearGradient {
+        let theme = effectiveTheme
+        return LinearGradient(
+            colors: [Color(nsColor: theme.gradientTopColor.nsColor),
+                     Color(nsColor: theme.gradientBottomColor.nsColor)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 
     var body: some View {
